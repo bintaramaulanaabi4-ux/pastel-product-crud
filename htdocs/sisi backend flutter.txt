@@ -1,0 +1,103 @@
+import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+
+void main() => runApp(const MyApp());
+
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Pastel Product Catalog',
+      theme: ThemeData(primarySwatch: Colors.pink),
+      home: const ProductListPage(),
+    );
+  }
+}
+
+class ProductListPage extends StatefulWidget {
+  const ProductListPage({super.key});
+
+  @override
+  _ProductListPageState createState() => _ProductListPageState();
+}
+
+class _ProductListPageState extends State<ProductListPage> {
+  // Ganti URL sesuai endpoint backend kamu (10.0.2.2 untuk Emulator Android, atau IP lokal untuk HP fisik)
+  final String apiUrl = "http://localhost/pcc_sample_php_mysql_services/api/products.php";
+  
+  List products = [];
+  bool isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    fetchProducts();
+  }
+
+  // READ: Mengambil data produk dari API
+  Future<void> fetchProducts() async {
+    try {
+      final response = await http.get(Uri.parse(apiUrl));
+      if (response.statusCode == 200) {
+        setState(() {
+          products = json.decode(response.body);
+          isLoading = false;
+        });
+      }
+    } catch (e) {
+      setState(() {
+        isLoading = false;
+      });
+      print("Error fetching data: $e");
+    }
+  }
+
+  // DELETE: Menghapus produk berdasarkan ID
+  Future<void> deleteProduct(int id) async {
+    final response = await http.delete(Uri.parse("$apiUrl?id=$id"));
+    if (response.statusCode == 200) {
+      fetchProducts(); // Refresh data setelah dihapus
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Gagal menghapus produk')),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Pastel Product Catalog'),
+      ),
+      body: isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : ListView.builder(
+              itemCount: products.length,
+              itemBuilder: (context, index) {
+                final product = products[index];
+                return Card(
+                  margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  child: ListTile(
+                    title: Text(product['name'] ?? 'Tanpa Nama'),
+                    subtitle: Text('Harga: Rp ${product['price']}'),
+                    trailing: IconButton(
+                      icon: const Icon(Icons.delete, color: Colors.red),
+                      onPressed: () => deleteProduct(int.parse(product['id'].toString())),
+                    ),
+                  ),
+                );
+              },
+            ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          // Navigasi atau dialog untuk Add / Create produk baru
+        },
+        child: const Icon(Icons.add),
+      ),
+    );
+  }
+}
